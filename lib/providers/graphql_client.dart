@@ -24,6 +24,9 @@ class _CustomHttpClient extends http.BaseClient {
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) {
+    request.headers.addAll({
+      'X-Anonymous-User-Id': 'tentative-anonymous-user-id',
+    });
     return _inner.send(request);
   }
 }
