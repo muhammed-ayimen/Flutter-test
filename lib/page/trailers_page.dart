@@ -5,6 +5,8 @@ import 'package:samansa_flutter_test/graphql/query/trailerVideos.graphql.dart';
 import 'package:samansa_flutter_test/page/trailer_view.dart';
 import 'package:video_player/controller/controller.dart';
 
+import '../widgets/loading.dart';
+
 const int _pageSize = 10;
 
 class TrailersPage extends HookConsumerWidget {
@@ -25,6 +27,9 @@ class TrailersPage extends HookConsumerWidget {
       ),
     );
 
+    final loading = queryResult.result.isLoading;
+    final hasError = queryResult.result.hasException;
+
     final data = queryResult.result.parsedData;
 
     useEffect(() {
@@ -44,18 +49,45 @@ class TrailersPage extends HookConsumerWidget {
       return null;
     }, [data, refreshKey.value]);
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
+    if (loading && edges.value.isEmpty) {
+      return const Loading();
+    }
+
+    if (hasError && edges.value.isEmpty) {
+      return Scaffold(
         backgroundColor: Colors.black,
-        title: const Text(
-          "Trailers",
-          style: TextStyle(
-            color: Colors.yellow,
-            fontSize: 20,
+        appBar: _buildAppBar(),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'エラーが発生しました',
+                style: TextStyle(color: Colors.white),
+              ),
+              SizedBox(height: 16),
+            ],
           ),
         ),
-      ),
+      );
+    }
+
+    if (edges.value.isEmpty) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: _buildAppBar(),
+        body: const Center(
+          child: Text(
+            "動画がありません",
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: _buildAppBar(),
       body: RefreshIndicator(
         onRefresh: () async => {
           // データの再取得処理をここに追加
@@ -71,6 +103,19 @@ class TrailersPage extends HookConsumerWidget {
             );
           },
           itemCount: trailers?.length,
+        ),
+      ),
+    );
+  }
+
+  AppBar _buildAppBar() {
+    return AppBar(
+      backgroundColor: Colors.black,
+      title: const Text(
+        "Trailers",
+        style: TextStyle(
+          color: Colors.yellow,
+          fontSize: 20,
         ),
       ),
     );
