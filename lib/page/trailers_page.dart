@@ -3,6 +3,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:samansa_flutter_test/graphql/query/trailerVideos.graphql.dart';
 import 'package:samansa_flutter_test/page/trailer_view.dart';
+import 'package:video_player/configurations/configurations.dart';
 import 'package:video_player/controller/controller.dart';
 
 import '../widgets/loading.dart';
@@ -21,16 +22,17 @@ class TrailersPage extends HookConsumerWidget {
     // refetch() がキャッシュの同一オブジェクトを返す場合があるため、refreshKey で useEffect を強制再実行する。/ refetch() may return the same cache object, so refreshKey forces useEffect to re-fire.
     final refreshKey = useState(0);
 
+    final controllerCache = useRef<Map<String, VideoPlayerController>>({});
+
     final queryResult = useQuery$trailerVideos(
       Options$Query$trailerVideos(
         variables: Variables$Query$trailerVideos(first: _pageSize),
       ),
     );
 
+    final data = queryResult.result.parsedData;
     final loading = queryResult.result.isLoading;
     final hasError = queryResult.result.hasException;
-
-    final data = queryResult.result.parsedData;
 
     useEffect(() {
       if (data == null) return null;
@@ -49,6 +51,56 @@ class TrailersPage extends HookConsumerWidget {
       return null;
     }, [data, refreshKey.value]);
 
+    void fetchMoreIfNeeded() {
+      final pageInfo = data?.trailerVideos.pageInfo;
+      if (pageInfo == null || !pageInfo.hasNextPage) return;
+      if (isFetchingMore.value) return;
+
+      final threshold = edges.value.length - 3;
+      if (currentIndex.value >= threshold) {
+        isFetchingMore.value = true;
+        queryResult.fetchMore(
+          FetchMoreOptions$Query$trailerVideos(
+            variables: Variables$Query$trailerVideos(
+              first: _pageSize,
+              after: pageInfo.endCursor,
+            ),
+            updateQuery: (previousResult, fetchMoreResult) =>
+                fetchMoreResult ?? previousResult,
+          ),
+        );
+      }
+    }
+
+    Future<void> refresh() async {
+      edges.value = [];
+      currentIndex.value = 0;
+      await queryResult.refetch();
+      refreshKey.value = refreshKey.value + 1;
+    }
+
+    VideoPlayerController controllerFor(String cursor, String fileUrl) {
+      return controllerCache.value.putIfAbsent(
+        cursor,
+        () => VideoPlayerController(
+          configuration: VideoPlayerConfiguration(
+            autoPlay: false,
+            hidesControls: true,
+            aspectRatio: 16 / 9,
+            controlsConfiguration: VideoPlayerControlsConfiguration(
+              progressBarPlayedColor: Colors.yellow[600]!,
+              progressBarHandleColor: Colors.yellow[600]!,
+              progressBarBackgroundColor: Colors.white24,
+            ),
+          ),
+          dataSource: VideoPlayerDataSource(
+            sourceType: VideoPlayerDataSourceType.network,
+            fileUrl: fileUrl,
+          ),
+        ),
+      );
+    }
+
     if (loading && edges.value.isEmpty) {
       return const Loading();
     }
@@ -57,15 +109,19 @@ class TrailersPage extends HookConsumerWidget {
       return Scaffold(
         backgroundColor: Colors.black,
         appBar: _buildAppBar(),
-        body: const Center(
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
+              const Text(
                 'エラーが発生しました',
                 style: TextStyle(color: Colors.white),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: refresh,
+                child: const Text('再試行'),
+              ),
             ],
           ),
         ),
@@ -85,24 +141,51 @@ class TrailersPage extends HookConsumerWidget {
       );
     }
 
+    final itemCount = edges.value.length + (isFetchingMore.value ? 1 : 0);
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: _buildAppBar(),
       body: RefreshIndicator(
-        onRefresh: () async => {
-          // データの再取得処理をここに追加
-        },
+        color: Colors.yellow,
+        backgroundColor: Colors.black,
+        onRefresh: refresh,
         child: PageView.builder(
+          controller: pageController,
           scrollDirection: Axis.vertical,
-          physics: const BouncingScrollPhysics(),
+          physics: const BouncingScrollPhysics(parent: PageScrollPhysics()),
+          itemCount: itemCount,
+          onPageChanged: (index) {
+            final prevEdge = edges.value.elementAtOrNull(currentIndex.value);
+            if (prevEdge != null) {
+              controllerCache.value[prevEdge.cursor]?.pause();
+            }
+            currentIndex.value = index;
+            final nextEdge = edges.value.elementAtOrNull(index);
+            if (nextEdge != null) {
+              controllerCache.value[nextEdge.cursor]?.play();
+            }
+            fetchMoreIfNeeded();
+          },
           itemBuilder: (context, index) {
-            final trailer = trailers![index].node!;
+            if (index >= edges.value.length) {
+              return const ColoredBox(
+                color: Colors.black,
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.yellow),
+                ),
+              );
+            }
+            final edge = edges.value[index];
+            final trailer = edge.node!;
+            final fileUrl = trailer.fileUrl;
             return TrailerView(
+              key: ValueKey(edge.cursor),
               trailer: trailer,
-              // controller: ここにVideoPlayerControllerを渡す
+              controller:
+                  fileUrl != null ? controllerFor(edge.cursor, fileUrl) : null,
             );
           },
-          itemCount: trailers?.length,
         ),
       ),
     );
