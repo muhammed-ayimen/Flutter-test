@@ -3,6 +3,11 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:samansa_flutter_test/graphql/query/trailerVideos.graphql.dart';
 import 'package:video_player/controller/video_player_controller.dart';
+import 'package:video_player/controller/video_player_value.dart';
+import 'package:video_player/player/video_player.dart';
+
+import '../widgets/hit_area.dart';
+import '../widgets/info_section.dart';
 
 class TrailerView extends HookConsumerWidget {
   const TrailerView({
@@ -17,6 +22,7 @@ class TrailerView extends HookConsumerWidget {
   final VideoPlayerController? controller;
   final void Function(VideoPlayerController)? onControllerReady;
   final void Function()? onDispose;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isSmall = useMemoized(
@@ -47,12 +53,50 @@ class TrailerView extends HookConsumerWidget {
       return const ColoredBox(color: Colors.black);
     }
 
-    return const ColoredBox(
-      color: Colors.black,
-      child: Center(
-        child: Text(
-          "TrailerViewの実装を完成させてください",
-          style: TextStyle(color: Colors.white),
+    return VideoPlayerControllerProvider(
+      controller: lockedController,
+      child: ColoredBox(
+        color: Colors.black,
+        child: SizedBox(
+          width: double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    VideoPlayer(
+                      controller: lockedController,
+                      noProvider: true,
+                    ),
+                    ValueListenableBuilder<VideoPlayerValue>(
+                      valueListenable: lockedController,
+                      builder: (context, value, child) {
+                        return TrailerHitArea(
+                          onTap: () {
+                            if (value.isPlaying) {
+                              lockedController.pause();
+                            } else {
+                              lockedController.play();
+                            }
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: TrailerInfoSection(
+                  isSmall: isSmall,
+                  trailer: trailer,
+                  controller: lockedController,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
