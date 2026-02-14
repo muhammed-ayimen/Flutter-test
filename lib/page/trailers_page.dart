@@ -184,6 +184,13 @@ class TrailersPage extends HookConsumerWidget {
               trailer: trailer,
               controller:
                   fileUrl != null ? controllerFor(edge.cursor, fileUrl) : null,
+              onControllerReady: (c) {
+                if (currentIndex.value == index) c.play();
+              },
+              onDispose: () {
+                // VideoPlayer がコントローラを破棄するため、次回のために削除。/ VideoPlayer owns disposal; remove from cache so next visit starts fresh.
+                controllerCache.value.remove(edge.cursor);
+              },
             );
           },
         ),
