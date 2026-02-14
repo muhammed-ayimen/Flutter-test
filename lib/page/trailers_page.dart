@@ -4,7 +4,8 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:samansa_flutter_test/graphql/query/trailerVideos.graphql.dart';
 import 'package:samansa_flutter_test/page/trailer_view.dart';
 import 'package:video_player/configurations/configurations.dart';
-import 'package:video_player/controller/controller.dart';
+import 'package:video_player/controller/video_player_controller.dart';
+import 'package:video_player/controller/video_player_data_source.dart';
 
 import '../widgets/loading.dart';
 
