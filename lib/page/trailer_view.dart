@@ -4,6 +4,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:samansa_flutter_test/graphql/query/trailerVideos.graphql.dart';
 import 'package:video_player/controller/video_player_controller.dart';
 import 'package:video_player/controller/video_player_value.dart';
+import 'package:video_player/controls/controls.dart';
 import 'package:video_player/player/video_player.dart';
 
 import '../widgets/hit_area.dart';
@@ -85,6 +86,44 @@ class TrailerView extends HookConsumerWidget {
                         );
                       },
                     ),
+                    ValueListenableBuilder<VideoPlayerValue>(
+                      valueListenable: lockedController,
+                      builder: (context, value, child) {
+                        if (value.initialized) return const SizedBox.shrink();
+                        if (value.errorDescription != null) {
+                          return const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Colors.white54,
+                                  size: 32,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  '動画を再生できません',
+                                  style: TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.yellow,
+                          ),
+                        );
+                      },
+                    ),
+                    const Positioned(
+                      top: 4,
+                      right: 4,
+                      child: MoreButton(),
+                    ),
                   ],
                 ),
               ),
@@ -95,6 +134,12 @@ class TrailerView extends HookConsumerWidget {
                   controller: lockedController,
                 ),
               ),
+              SizedBox(
+                height: 42,
+                width: MediaQuery.of(context).size.width,
+                child: const MaterialVideoProgressBar(),
+              ),
+              const SizedBox(height: 80),
             ],
           ),
         ),
