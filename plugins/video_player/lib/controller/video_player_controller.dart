@@ -315,7 +315,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 
     if (dataSource.sourceType == VideoPlayerDataSourceType.network) {
       if (Utils.isDataSourceHls(dataSource.fileUrl)) {
-        _loadAbrManifest(dataSource);
+        _loadAbrManifest(dataSource).catchError((_) {});
       }
     }
 
@@ -326,7 +326,11 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       );
     }
 
-    await _initializeCompleter.future;
+    try {
+      await _initializeCompleter.future;
+    } catch (_) {
+      return;
+    }
     await VideoPlayerPlatform.instance.setAutoLoop(
       textureId,
       configuration.autoLoop,
